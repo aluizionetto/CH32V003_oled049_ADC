@@ -1,5 +1,7 @@
 # Projeto para teste de display OLED 0.49' I2C com controlador SSD1309
 
+Uso do microcontrolador CH32V003A4M6 para controle de OLED 0.49' 64x32 com controlador SSD1306.
+
 ## R1
 Apenas teste de display, mostra caracters recebido pela USART.
 
