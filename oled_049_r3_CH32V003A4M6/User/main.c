@@ -30,18 +30,18 @@
 
 
 /* Global Variable */
-#define N_MEDIA (64)
+#define N_MEDIA (64)   //aumenta resolu efetiva de 10 para 13 bits n_inc = log(64)/log(4)
 #define N_CH_ADC (4)   //numero de de canais ADC
 #define N_ADC_BUF (N_MEDIA*N_CH_ADC*2)
 
 volatile uint16_t adc_buf[N_ADC_BUF];
-volatile uint32_t adc_media[N_CH_ADC];  //buffer dos valores de media adc
+volatile uint32_t adc_acc[N_CH_ADC];  //buffer dos valores de media adc
 volatile uint32_t flag_adc = 0;
 volatile uint32_t soma;
 char msg_buf[16];
 
-//fatores de escala para converter para mV
-// 60V, 560 V, 36 ,6.6V
+//fatores de escala para converter para mV considerando conversor de 10bits
+// 60.84V, 561.76 V, 36.3 ,6.6V
 const float F_ESCALA[N_CH_ADC] = {059.471, 549.13151, 35.48387, 6.451613};
 
 /*********************************************************************
@@ -172,7 +172,7 @@ void DMA1_Channel1_IRQHandler (void) {
 			for (ks = 0; ks < N_MEDIA; ks++){
 				soma += adc_buf[ks*N_CH_ADC + kc];
 			}
-			adc_media[kc] = soma / N_MEDIA;
+			adc_acc[kc] = soma;
 		}
 
 		flag_adc = 1;
@@ -183,19 +183,19 @@ void DMA1_Channel1_IRQHandler (void) {
 
 	if (DMA_GetITStatus(DMA1_IT_TC1) == SET) {
 
-			//faz media
-			for(kc = 0; kc < N_CH_ADC; kc++){
-				soma = 0;
-				for (ks = 0; ks < N_MEDIA; ks++){
-					soma += adc_buf[N_ADC_BUF/2 + ks*N_CH_ADC + kc];
-				}
-				adc_media[kc] = soma / N_MEDIA;
+		//faz media
+		for(kc = 0; kc < N_CH_ADC; kc++){
+			soma = 0;
+			for (ks = 0; ks < N_MEDIA; ks++){
+				soma += adc_buf[N_ADC_BUF/2 + ks*N_CH_ADC + kc];
 			}
-			flag_adc = 1;
-
-			//limpa flag de interrupção
-			DMA_ClearITPendingBit(DMA1_IT_TC1);
+			adc_acc[kc] = soma;
 		}
+		flag_adc = 1;
+
+		//limpa flag de interrupção
+		DMA_ClearITPendingBit(DMA1_IT_TC1);
+	}
 }
 
 /*********************************************************************
@@ -251,12 +251,12 @@ int main(void)
 			flag_adc = 0;
 
 			for(int i = 0; i < 4; i++){
-				value_adj = (uint32_t)((float)adc_media[i]*F_ESCALA[i]);
+				value_adj = (uint32_t)((float)adc_acc[i]*F_ESCALA[i]/((float)N_MEDIA));
 
 				sprintf(msg_buf,"%d:%3d.%02d",i,value_adj/1000,(value_adj%1000)/10);
 				ssd1306Print(i,0,msg_buf);
 
-				printf("%04d; ",adc_media[i]);
+				printf("%d; ",adc_acc[i]);
 			}
 			printf("\r\n");
 		}
